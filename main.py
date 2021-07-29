@@ -13,6 +13,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 import numpy as np
+import clearml
 
 import torch
 import torch.nn as nn
@@ -599,6 +600,8 @@ def main():
         else:
             samples_per_class[sample[1]] = 0
 
+
+
     target_values = torch.FloatTensor(target_values)
     from sklearn.utils import class_weight
 
@@ -663,6 +666,7 @@ def main():
                      args,
                      amp_autocast=amp_autocast)
             """
+        task = clearml.Task.init()
         for epoch in range(start_epoch, num_epochs):
             if args.distributed and hasattr(loader_train.sampler, 'set_epoch'):
                 loader_train.sampler.set_epoch(epoch)
@@ -722,6 +726,8 @@ def main():
                 save_metric = eval_metrics[eval_metric]
                 best_metric, best_epoch = saver.save_checkpoint(
                     epoch, metric=save_metric)
+                filename = 'checkpoint-{}.pth'.format(str(epoch))
+                task.upload_artifact(filename, os.path.join(output_dir, filename))
 
     except KeyboardInterrupt:
         pass
@@ -799,13 +805,6 @@ def train_one_epoch(epoch,
 
         with amp_autocast():
             output = model(input)
-            """
-            print("outttttttttttttttttttput", output)
-            print("outttttttttttttttttttput", len(output))
-
-            print("outttttttttttttttttttput", target)
-            print("outttttttttttttttttttput", target.size())
-            """
             loss = loss_fn(output, target)
 
         if not args.distributed:

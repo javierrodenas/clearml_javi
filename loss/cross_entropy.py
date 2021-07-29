@@ -25,25 +25,15 @@ class SoftTargetCrossEntropy(nn.Module):
     return: loss
     """
 
-    def __init__(self,):
+    def __init__(self,weights):
         super(SoftTargetCrossEntropy, self).__init__()
+        self.weights = weights
     def forward(self, x, target):
         N_rep = x.shape[0]
         N = target.shape[0]
         if not N == N_rep:
             target = target.repeat(N_rep // N, 1)
-        """
-        print("xxxxxxxxxxxxxxxxx", x)
-        print("xxxxxxxxxxxxxxxxx", x.size())
-        print("======================================")
-        print("taaaaaaaaaaaaaaarget", target)
-        print("taaaaaaaaaaaaaaarget", target.size())
-        """
-        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
-        """
-        print("LOOOOOOOOOOOOOOOOOOOOOOOOS", loss)
-        print("LOOOOOOOOOOOOOOOOOOOOOOOOS", loss.size())
-        """
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1) * self.weights, dim=-1)
         return loss.mean()
 
 
@@ -62,7 +52,7 @@ class TokenLabelGTCrossEntropy(nn.Module):
                  weights=None):
         super(TokenLabelGTCrossEntropy, self).__init__()
         self.weights = weights.to(device='cuda')
-        self.CE = SoftTargetCrossEntropy()
+        self.CE = SoftTargetCrossEntropy(self.weights)
 
         self.dense_weight = dense_weight
         self.smoothing = smoothing
@@ -74,16 +64,6 @@ class TokenLabelGTCrossEntropy(nn.Module):
     def forward(self, x, target):
 
         output, aux_output, bb = x
-        #print("before", output[0])
-
-        output[0] = output[0] * self.weights
-        """
-        print("weighgs", self.weights)
-        print("after", output[0])
-
-        print("outeaaaaaaaaaaaaaaa", output)
-        print("outeaaaaaaaaaaaaaaa", output.size())
-        """
         bbx1, bby1, bbx2, bby2 = bb
         B, N, C = aux_output.shape
         if len(target.shape) == 2:
@@ -125,7 +105,7 @@ class TokenLabelSoftTargetCrossEntropy(nn.Module):
             target = target.repeat(N_rep // N, 1)
         if len(target.shape) == 3 and target.shape[-1] == 2:
             target = target[:, :, 1]
-        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1) * self.weights, dim=-1)
         return loss.mean()
 
 
